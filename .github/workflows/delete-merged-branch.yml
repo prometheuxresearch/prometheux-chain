@@ -1,0 +1,40 @@
+name: Delete merged branch
+
+# Housekeeping: when a PR merges, delete the branch it came from so stale
+# feature branches do not pile up on the remote.
+#
+# The long-lived branches are never deleted, so the release flow is untouched:
+#   feature -> develop : feature branch deleted
+#   develop -> main    : develop kept
+#   main    -> *       : main kept
+#
+# Branches from forks are skipped — GITHUB_TOKEN has no write access there.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref != 'develop' &&
+      github.event.pull_request.head.ref != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete head branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${HEAD_REF}"; then
+            echo "Deleted ${HEAD_REF}"
+          else
+            # Already deleted (e.g. by the repo's auto-delete setting) or
+            # protected — nothing to do either way, so do not fail the run.
+            echo "Could not delete ${HEAD_REF}; it is already gone or protected"
+          fi
