@@ -1,7 +1,7 @@
 """
 Vadalingo Translation Module
 
-Translate natural language, SQL, RDF, and OWL into Vadalog.
+Translate SQL, RDF, and OWL into Vadalog.
 
 Copyright (C) Prometheux Limited. All rights reserved.
 
@@ -16,16 +16,6 @@ def _check(response, action="operation"):
     if response.get('status') != 'success':
         raise Exception(f"Vadalingo {action} failed: {response.get('message', 'Unknown error')}")
     return response.get('data')
-
-
-def translate_nl_to_vadalog(ontology_id, domain_knowledge):
-    """Translate a natural-language domain description into Vadalog.
-
-    ``domain_knowledge`` may reference concepts with ``@concept_name``.
-    """
-    return _check(JarvisPyClient.translate_nl_to_vadalog(
-        ontology_id=ontology_id, domain_knowledge=domain_knowledge,
-    ), "translate nl")
 
 
 def translate_sql_to_vadalog(ontology_id, sql_data):

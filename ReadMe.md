@@ -109,8 +109,8 @@ covering the user-facing JarvisPy backend:
   `delete_files`, `move_file`, `download_file`.
 - **Concepts** — `save_concept`, `rename_concept`, `run_concept`,
   `run_concept_stream`, `list_concepts`, `reorder_concepts`, `fetch_results`,
-  `search_results`, `llm_analysis`, `download_concept`,
-  `generate_concept_description`, `get_concept_description`,
+  `search_results`, `query_concept`, `search_similar_concepts`, `llm_analysis`,
+  `download_concept`, `generate_concept_description`, `get_concept_description`,
   `get_execution_status`, `get_execution_statuses`, `cleanup_concepts`.
 - **Knowledge graphs** — `visualize_concept_lineage`, `build_graph`,
   `list_graph_functions`, `run_graph_analytics`.
@@ -118,28 +118,31 @@ covering the user-facing JarvisPy backend:
   `update_concept_ontology_schema_type`, `add_to_lineage`, `import_owl`.
 - **Knowledge / context layer** — `list_context_notes`, `create_context_note`,
   `create_context_notes_from_file`, `get_context_note`, `update_context_note`,
-  `delete_context_note`, `search_context_notes`, `auto_seed`,
-  `interview_template`, `submit_interview`, `onboarding_status`, `ontology_text`.
+  `create_context_edge`, `delete_context_note`, `search_context_notes`,
+  `auto_seed`, `interview_template`, `submit_interview`, `onboarding_status`,
+  `ontology_text`.
 - **Agent** — `agent_chat` (streaming), `agent_reset`.
+- **Assistant** — `list_skills`, `get_skill`, `get_company_info`.
 - **Sharing** — `create_share`, `revoke_share`, `update_share_role`,
   `list_shares`, `list_inbox`, `accept_share`, `leave_share`, `sync_inbox`.
 - **Apps** — `list_all_apps`, `list_apps`, `get_app`,
-  `save_app`, `delete_app`.
+  `save_app`, `delete_app`, `publish_app`, `unpublish_app`.
 - **Schedules** — `create_policy`, `list_policies`, `get_policy`,
   `update_policy`, `delete_policy`, `trigger_policy`, `get_run_history`.
 - **Alerts** — `get_alert_history`, `reprocess_alert`.
 - **Chat history** — `list_sessions`, `get_session`, `rename_session`,
   `delete_session`.
-- **Compute** — `check_compute_availability`.
+- **Compute** — `check_compute_availability`, `list_machines_combined`,
+  `set_machine_active`, `get_machine_status`, `use_machine`,
+  `delete_user_machine`.
 - **Users / account** — `save_user_config`, `load_user_config`, `get_role`,
   `list_llm_models`, `get_usage_status`, `get_login_activity`.
 - **Auth / tokens** — `issue_token`, `list_tokens`, `revoke_token`,
   `revoke_specific_token`, `revoke_all_tokens`.
 - **Vadalog authoring** — `analyze_program`, `build_bind`, `parse_binds`,
-  `evaluate_program`.
-- **Vadalingo translation** — `translate_nl_to_vadalog`,
-  `translate_sql_to_vadalog`, `translate_rdf_to_vadalog`,
-  `translate_owl_to_vadalog`.
+  `evaluate_program`, `validate_concept`.
+- **Vadalingo translation** — `translate_sql_to_vadalog`,
+  `translate_rdf_to_vadalog`, `translate_owl_to_vadalog`.
 
 ### Optional configuration
 
@@ -197,14 +200,14 @@ install is always a commit that was reviewed.
 ```bash
 # 1. Bump the version. This is the only place it lives: setup.py stamps it into
 #    the package metadata, and prometheux_chain.__version__ reads it back out.
-echo "0.3.4" > version.txt
+echo "0.4.1" > version.txt
 
 # 2. Open a PR with that change and merge it. That is the whole release.
 ```
 
 The guard job compares `version.txt` against the tags that already exist, so a
 merge that does not bump the version is a no-op. A merge that does bump it builds,
-publishes, attests the artifacts, tags the commit `v0.3.4`, and opens a GitHub
+publishes, attests the artifacts, tags the commit `v0.4.1`, and opens a GitHub
 Release with the SBOM and checksums attached. A version already on PyPI fails the
 upload rather than being skipped quietly.
 

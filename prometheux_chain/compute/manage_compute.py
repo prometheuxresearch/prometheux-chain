@@ -41,3 +41,13 @@ def set_machine_active(user_machine_id, is_active, autotermination_minutes=None)
 def get_machine_status(user_machine_id):
     """Return real-time pod status of one owned machine."""
     return JarvisPyClient.get_machine_status(user_machine_id)
+
+
+def use_machine(machine_id, machine_name=None):
+    """Add a catalog machine to the caller's list (not billable until started)."""
+    return JarvisPyClient.use_machine(machine_id, machine_name=machine_name)
+
+
+def delete_user_machine(user_machine_id):
+    """Soft-disable an owned machine, preserving usage history."""
+    return JarvisPyClient.delete_user_machine(user_machine_id)

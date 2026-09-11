@@ -515,7 +515,8 @@ class JarvisPyClient:
     def save_concept(ontology_id, definition, python_scripts=None,
                      description=None, concept_type="logic", concept_name=None,
                      binds=None, output_predicate="", existing_name=None,
-                     position=None, group="group_id", compute=None, force_overwrite=False):
+                     position=None, group="group_id", compute=None, force_overwrite=False,
+                     concept_config=None):
         payload = {'definition': definition, 'concept_type': concept_type}
         if python_scripts:
             payload['python_scripts'] = python_scripts
@@ -537,6 +538,8 @@ class JarvisPyClient:
             payload['compute'] = compute
         if force_overwrite:
             payload['force_overwrite'] = force_overwrite
+        if concept_config is not None:
+            payload['concept_config'] = concept_config
         return JarvisPyClient._request("POST", f"/api/v1/concepts/{ontology_id}/save", json=payload)
 
     @staticmethod
@@ -610,7 +613,8 @@ class JarvisPyClient:
 
     @staticmethod
     def fetch_results(ontology_id, output_predicate, page=1, page_size=10,
-                      order_by=None, params=None, compute=None):
+                      order_by=None, params=None, compute=None,
+                      search_term=None, column_filters=None, total_count=None):
         query = {
             'output_predicate': output_predicate,
         }
@@ -624,28 +628,40 @@ class JarvisPyClient:
             body['params'] = params
         if compute:
             body['compute'] = compute
+        if search_term is not None:
+            body['search_term'] = search_term
+        if column_filters is not None:
+            body['column_filters'] = column_filters
+        if total_count is not None:
+            body['total_count'] = total_count
         return JarvisPyClient._request("POST", f"/api/v1/concepts/{ontology_id}/fetch",
                                        json=body, params=query)
 
     @staticmethod
     def search_results(ontology_id, output_predicate, search_term=None, column_filters=None,
                        page=1, page_size=0, order_by=None, compute=None):
-        query = {
-            'output_predicate': output_predicate,
-            'page': page,
-            'page_size': page_size,
-        }
-        if order_by:
-            query['order_by'] = order_by
-        body = {}
-        if search_term is not None:
-            body['search_term'] = search_term
-        if column_filters is not None:
-            body['column_filters'] = column_filters
+        """Search a populated predicate. Same route as ``fetch_results`` — search
+        was folded into ``POST /concepts/{id}/fetch``."""
+        return JarvisPyClient.fetch_results(
+            ontology_id, output_predicate, page=page, page_size=page_size,
+            order_by=order_by, compute=compute,
+            search_term=search_term, column_filters=column_filters,
+        )
+
+    @staticmethod
+    def query_concept(ontology_id, concept_name, sql, compute=None):
+        payload = {'concept_name': concept_name, 'sql': sql}
         if compute:
-            body['compute'] = compute
-        return JarvisPyClient._request("POST", f"/api/v1/concepts/{ontology_id}/search",
-                                       json=body, params=query)
+            payload['compute'] = compute
+        return JarvisPyClient._request("POST", f"/api/v1/concepts/{ontology_id}/query",
+                                       json=payload)
+
+    @staticmethod
+    def search_similar_concepts(query, top_k=0, exclude_ontology_id=None):
+        params = {'query': query, 'top_k': top_k}
+        if exclude_ontology_id:
+            params['exclude_project_id'] = exclude_ontology_id
+        return JarvisPyClient._request("GET", "/api/v1/concepts/search-similar", params=params)
 
     @staticmethod
     def llm_analysis(ontology_id, question, predicate_names=None, predicate_data=None,
@@ -835,7 +851,8 @@ class JarvisPyClient:
 
     @staticmethod
     def create_context_note(scope, kind, text, scope_id=None, source="user",
-                            pinned=False, supersedes=None):
+                            pinned=False, supersedes=None, activation="retrieved",
+                            title=None, folder_path=None):
         payload = {
             'scope': scope,
             'scope_id': scope_id,
@@ -843,9 +860,14 @@ class JarvisPyClient:
             'text': text,
             'source': source,
             'pinned': pinned,
+            'activation': activation,
         }
         if supersedes is not None:
             payload['supersedes'] = supersedes
+        if title is not None:
+            payload['title'] = title
+        if folder_path is not None:
+            payload['folder_path'] = folder_path
         return JarvisPyClient._request("POST", "/api/v1/knowledge/context", json=payload)
 
     @staticmethod
@@ -861,14 +883,29 @@ class JarvisPyClient:
 
     @staticmethod
     def update_context_note(note_id, text=None, kind=None, pinned=None,
-                            scope=_UNSET, scope_id=_UNSET):
+                            scope=_UNSET, scope_id=_UNSET, activation=None,
+                            title=None, folder_path=_UNSET):
         payload = {'text': text, 'kind': kind, 'pinned': pinned}
         if scope is not _UNSET:
             payload['scope'] = scope
         if scope_id is not _UNSET:
             payload['scope_id'] = scope_id
+        if activation is not None:
+            payload['activation'] = activation
+        if title is not None:
+            payload['title'] = title
+        if folder_path is not _UNSET:
+            payload['folder_path'] = folder_path
         return JarvisPyClient._request("PATCH", f"/api/v1/knowledge/context/{quote(note_id, safe='')}",
                                        json=payload)
+
+    @staticmethod
+    def create_context_edge(src_type, src_id, dst_type, dst_id, relation="relates_to",
+                            created_by="user"):
+        return JarvisPyClient._request("POST", "/api/v1/knowledge/context/edges", json={
+            'src_type': src_type, 'src_id': src_id, 'dst_type': dst_type, 'dst_id': dst_id,
+            'relation': relation, 'created_by': created_by,
+        })
 
     @staticmethod
     def delete_context_note(note_id):
@@ -1007,6 +1044,14 @@ class JarvisPyClient:
     def delete_app(ontology_id, app_id):
         return JarvisPyClient._request("DELETE", f"/api/v1/apps/{ontology_id}/{app_id}")
 
+    @staticmethod
+    def publish_app(ontology_id, app_id):
+        return JarvisPyClient._request("POST", f"/api/v1/apps/{ontology_id}/{app_id}/publish")
+
+    @staticmethod
+    def unpublish_app(ontology_id, app_id):
+        return JarvisPyClient._request("POST", f"/api/v1/apps/{ontology_id}/{app_id}/unpublish")
+
     # ── Schedules ─────────────────────────────────────────────────────────
 
     @staticmethod
@@ -1124,6 +1169,20 @@ class JarvisPyClient:
         return JarvisPyClient._request(
             "GET", f"/api/v1/machines/user-machines/{user_machine_id}/status")
 
+    @staticmethod
+    def use_machine(machine_id, machine_name=None):
+        """Add a catalog machine to the caller's list (not billable until started)."""
+        body = {'machine_id': machine_id}
+        if machine_name is not None:
+            body['machine_name'] = machine_name
+        return JarvisPyClient._request("POST", "/api/v1/machines/user-machines/use", json=body)
+
+    @staticmethod
+    def delete_user_machine(user_machine_id):
+        """Soft-disable an owned machine, preserving usage history."""
+        return JarvisPyClient._request(
+            "DELETE", f"/api/v1/machines/user-machines/{quote(str(user_machine_id), safe='')}")
+
     # ── Vadalog authoring ─────────────────────────────────────────────────
 
     @staticmethod
@@ -1150,12 +1209,37 @@ class JarvisPyClient:
             payload['compute'] = compute
         return JarvisPyClient._request("POST", "/api/v1/vadalog/evaluate", json=payload)
 
-    # ── Vadalingo translation ─────────────────────────────────────────────
+    @staticmethod
+    def validate_concept(definition, concept_type="logic", concept_name="",
+                         ontology_id=None, concept_config=None):
+        payload = {
+            'definition': definition,
+            'concept_type': concept_type,
+            'concept_name': concept_name,
+        }
+        if ontology_id is not None:
+            payload['project_id'] = ontology_id
+        if concept_config is not None:
+            payload['concept_config'] = concept_config
+        return JarvisPyClient._request("POST", "/api/v1/vadalog/validate", json=payload)
+
+    # ── Assistant helpers ─────────────────────────────────────────────────
 
     @staticmethod
-    def translate_nl_to_vadalog(ontology_id, domain_knowledge):
-        return JarvisPyClient._request("POST", f"/api/v1/vadalingo/{ontology_id}/translate/nl-to-vadalog",
-                                       json={'domain_knowledge': domain_knowledge})
+    def list_skills():
+        return JarvisPyClient._request("GET", "/api/v1/assistant/skills")
+
+    @staticmethod
+    def get_skill(skill_id):
+        return JarvisPyClient._request(
+            "GET", f"/api/v1/assistant/skills/{quote(skill_id, safe='')}")
+
+    @staticmethod
+    def get_company_info(query):
+        return JarvisPyClient._request("GET", "/api/v1/assistant/company-info",
+                                       params={'query': query})
+
+    # ── Vadalingo translation ─────────────────────────────────────────────
 
     @staticmethod
     def translate_sql_to_vadalog(ontology_id, sql_data):
