@@ -66,6 +66,8 @@ from .concept.manage_concepts import rename_concept
 from .concept.manage_concepts import reorder_concepts
 from .concept.manage_concepts import fetch_results
 from .concept.manage_concepts import search_results
+from .concept.manage_concepts import query_concept
+from .concept.manage_concepts import search_similar_concepts
 from .concept.manage_concepts import llm_analysis
 from .concept.manage_concepts import download_concept
 from .concept.manage_concepts import get_execution_statuses
@@ -107,6 +109,7 @@ from .knowledge.manage_knowledge import create_context_note
 from .knowledge.manage_knowledge import create_context_notes_from_file
 from .knowledge.manage_knowledge import get_context_note
 from .knowledge.manage_knowledge import update_context_note
+from .knowledge.manage_knowledge import create_context_edge
 from .knowledge.manage_knowledge import delete_context_note
 from .knowledge.manage_knowledge import search_context_notes
 from .knowledge.manage_knowledge import auto_seed
@@ -118,6 +121,11 @@ from .knowledge.manage_knowledge import ontology_text
 # ── Agent ───────────────────────────────────────────────────────────────────
 from .agent.manage_agent import agent_chat
 from .agent.manage_agent import agent_reset
+
+# ── Assistant helpers ───────────────────────────────────────────────────────
+from .assistant.manage_assistant import list_skills
+from .assistant.manage_assistant import get_skill
+from .assistant.manage_assistant import get_company_info
 
 # ── Project sharing ─────────────────────────────────────────────────────────
 from .share.manage_share import create_share
@@ -135,6 +143,8 @@ from .app.manage_apps import list_apps
 from .app.manage_apps import get_app
 from .app.manage_apps import save_app
 from .app.manage_apps import delete_app
+from .app.manage_apps import publish_app
+from .app.manage_apps import unpublish_app
 
 # ── Schedules ───────────────────────────────────────────────────────────────
 from .schedule.manage_schedules import create_policy
@@ -160,15 +170,17 @@ from .compute.manage_compute import check_compute_availability
 from .compute.manage_compute import list_machines_combined
 from .compute.manage_compute import set_machine_active
 from .compute.manage_compute import get_machine_status
+from .compute.manage_compute import use_machine
+from .compute.manage_compute import delete_user_machine
 
 # ── Vadalog authoring ───────────────────────────────────────────────────────
 from .vadalog.manage_vadalog import analyze_program
 from .vadalog.manage_vadalog import build_bind
 from .vadalog.manage_vadalog import parse_binds
 from .vadalog.manage_vadalog import evaluate_program
+from .vadalog.manage_vadalog import validate_concept
 
 # ── Vadalingo translation ───────────────────────────────────────────────────
-from .vadalingo.manage_vadalingo import translate_nl_to_vadalog
 from .vadalingo.manage_vadalingo import translate_sql_to_vadalog
 from .vadalingo.manage_vadalingo import translate_rdf_to_vadalog
 from .vadalingo.manage_vadalingo import translate_owl_to_vadalog

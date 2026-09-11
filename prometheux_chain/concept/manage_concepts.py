@@ -19,14 +19,15 @@ def _check(response, action="operation"):
 def save_concept(ontology_id, definition, python_scripts=None,
                  description=None, concept_type="logic", concept_name=None,
                  binds=None, output_predicate="", existing_name=None,
-                 position=None, group="group_id", compute=None, force_overwrite=False):
+                 position=None, group="group_id", compute=None, force_overwrite=False,
+                 concept_config=None):
     """Save a concept. Only ``definition`` is required; everything else has defaults."""
     return _check(JarvisPyClient.save_concept(
         ontology_id=ontology_id, definition=definition, python_scripts=python_scripts,
         description=description, concept_type=concept_type,
         concept_name=concept_name, binds=binds, output_predicate=output_predicate,
         existing_name=existing_name, position=position, group=group, compute=compute,
-        force_overwrite=force_overwrite), "save")
+        force_overwrite=force_overwrite, concept_config=concept_config), "save")
 
 
 def rename_concept(ontology_id, old_name, new_name):
@@ -98,20 +99,46 @@ def get_concept_description(ontology_id, concept_name):
 
 
 def fetch_results(ontology_id, output_predicate, page=1, page_size=10,
-                  order_by=None, params=None, compute=None):
-    """Fetch paginated results for a populated predicate."""
+                  order_by=None, params=None, compute=None,
+                  search_term=None, column_filters=None, total_count=None):
+    """Fetch paginated results for a populated predicate.
+
+    Optional ``search_term`` (free-text OR across columns) and ``column_filters``
+    (operator-based) combine with ``params`` on the same ``/fetch`` route.
+    """
     return _check(JarvisPyClient.fetch_results(
         ontology_id=ontology_id, output_predicate=output_predicate,
         page=page, page_size=page_size, order_by=order_by,
-        params=params, compute=compute), "fetch")
+        params=params, compute=compute, search_term=search_term,
+        column_filters=column_filters, total_count=total_count), "fetch")
 
 
 def search_results(ontology_id, output_predicate, search_term=None, column_filters=None,
                    page=1, page_size=0, order_by=None, compute=None):
-    """Search a populated predicate by free text and/or column filters."""
-    return _check(JarvisPyClient.search_results(
+    """Search a populated predicate by free text and/or column filters.
+
+    Convenience wrapper around ``fetch_results`` — the dedicated ``/search``
+    route no longer exists.
+    """
+    return fetch_results(
         ontology_id=ontology_id, output_predicate=output_predicate,
-        search_term=search_term, column_filters=column_filters, page=page, page_size=page_size, order_by=order_by, compute=compute), "search")
+        page=page, page_size=page_size, order_by=order_by,
+        compute=compute, search_term=search_term, column_filters=column_filters,
+    )
+
+
+def query_concept(ontology_id, concept_name, sql, compute=None):
+    """Run a read-only SQL SELECT over one populated concept."""
+    return _check(JarvisPyClient.query_concept(
+        ontology_id=ontology_id, concept_name=concept_name, sql=sql, compute=compute,
+    ), "query")
+
+
+def search_similar_concepts(query, top_k=0, exclude_ontology_id=None):
+    """Find concepts across ontologies that are semantically similar to ``query``."""
+    return _check(JarvisPyClient.search_similar_concepts(
+        query=query, top_k=top_k, exclude_ontology_id=exclude_ontology_id,
+    ), "search similar")
 
 
 def llm_analysis(ontology_id, question, predicate_names=None, predicate_data=None,

@@ -49,3 +49,17 @@ def delete_app(ontology_id, app_id):
     )
     if response.get('status') != 'success':
         raise Exception(f"App delete failed: {response.get('message', 'Unknown error')}")
+
+
+def publish_app(ontology_id, app_id):
+    """Publish a frozen, shareable snapshot of the app's current draft."""
+    return _check(JarvisPyClient.publish_app(
+        ontology_id=ontology_id, app_id=app_id,
+    ), "publish")
+
+
+def unpublish_app(ontology_id, app_id):
+    """Remove the published snapshot (back to draft-only)."""
+    response = JarvisPyClient.unpublish_app(ontology_id=ontology_id, app_id=app_id)
+    if response.get('status') != 'success':
+        raise Exception(f"App unpublish failed: {response.get('message', 'Unknown error')}")

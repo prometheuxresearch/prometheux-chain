@@ -44,3 +44,16 @@ def evaluate_program(program, params=None, compute=None):
     return _check(JarvisPyClient.evaluate_program(
         program=program, params=params, compute=compute,
     ), "evaluate")
+
+
+def validate_concept(definition, concept_type="logic", concept_name="",
+                     ontology_id=None, concept_config=None):
+    """Validate a concept body without persisting it.
+
+    Returns ``{'valid': True/False, ...}``. Unlike ``analyze_program``, this is
+    a verdict (compile / syntax / structural), not predicate structure.
+    """
+    return _check(JarvisPyClient.validate_concept(
+        definition=definition, concept_type=concept_type, concept_name=concept_name,
+        ontology_id=ontology_id, concept_config=concept_config,
+    ), "validate")

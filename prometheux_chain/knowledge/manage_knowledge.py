@@ -33,11 +33,16 @@ def list_context_notes(scope, scope_id=None, kinds=None):
 
 
 def create_context_note(scope, kind, text, scope_id=None, source="user",
-                        pinned=False, supersedes=None):
-    """Create a single context note."""
+                        pinned=False, supersedes=None, activation="retrieved",
+                        title=None, folder_path=None):
+    """Create a single context note.
+
+    ``activation`` is ``retrieved`` (default), ``always``, or ``on_demand``.
+    """
     return _check(JarvisPyClient.create_context_note(
         scope=scope, kind=kind, text=text, scope_id=scope_id, source=source,
-        pinned=pinned, supersedes=supersedes,
+        pinned=pinned, supersedes=supersedes, activation=activation,
+        title=title, folder_path=folder_path,
     ), "create context note")
 
 
@@ -57,18 +62,31 @@ def get_context_note(note_id):
 
 
 def update_context_note(note_id, text=None, kind=None, pinned=None,
-                        scope=_UNSET, scope_id=_UNSET):
+                        scope=_UNSET, scope_id=_UNSET, activation=None,
+                        title=None, folder_path=_UNSET):
     """Update a context note. Only provided fields are changed.
 
     To move a note's scope, pass ``scope`` (and ``scope_id``) explicitly;
     passing ``scope_id=None`` clears the project id (global scope).
     """
-    kwargs = {'text': text, 'kind': kind, 'pinned': pinned}
+    kwargs = {'text': text, 'kind': kind, 'pinned': pinned, 'activation': activation,
+              'title': title}
     if scope is not _UNSET:
         kwargs['scope'] = scope
     if scope_id is not _UNSET:
         kwargs['scope_id'] = scope_id
+    if folder_path is not _UNSET:
+        kwargs['folder_path'] = folder_path
     return _check(JarvisPyClient.update_context_note(note_id, **kwargs), "update context note")
+
+
+def create_context_edge(src_type, src_id, dst_type, dst_id, relation="relates_to",
+                        created_by="user"):
+    """Create a context-layer edge. Duplicate triples return the existing edge."""
+    return _check(JarvisPyClient.create_context_edge(
+        src_type=src_type, src_id=src_id, dst_type=dst_type, dst_id=dst_id,
+        relation=relation, created_by=created_by,
+    ), "create context edge")
 
 
 def delete_context_note(note_id):
