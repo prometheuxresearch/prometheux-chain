@@ -37,17 +37,36 @@ def rename_concept(ontology_id, old_name, new_name):
 
 
 def run_concept(ontology_id, concept_name, params=None,
-                force_rerun=True, persist_outputs=False, compute=None):
-    """Run a concept. Only ``project_id`` and ``concept_name`` are required."""
+                run_mode=None, persist_outputs=False, compute=None,
+                force_rerun=None):
+    """Run a concept. Only ``ontology_id`` and ``concept_name`` are required.
+
+    ``run_mode`` is ``"single"``, ``"auto"`` (the default), or ``"all"`` — how
+    much of the dependency chain to rebuild:
+
+    - ``single`` — reuse every populated dependency as-is; rebuild only what is
+      strictly missing to answer for the target concept.
+    - ``auto`` — reuse dependencies that are provably fresh, rebuild the stale
+      ones, and honour frozen checkpoints.
+    - ``all`` — rebuild everything reachable and override checkpoints.
+
+    The legacy ``force_rerun`` boolean is still accepted: ``True`` maps to
+    ``"all"`` and ``False`` to ``"single"``. Prefer ``run_mode``.
+    """
     return _check(JarvisPyClient.run_concept(
         ontology_id=ontology_id, concept_name=concept_name,
-        params=params or {}, force_rerun=force_rerun,
+        params=params or {}, run_mode=run_mode, force_rerun=force_rerun,
         persist_outputs=persist_outputs, compute=compute), "run")
 
 
 def run_concept_stream(ontology_id, concept_name, params=None,
-                       force_rerun=True, persist_outputs=False, compute=None):
+                       run_mode=None, persist_outputs=False, compute=None,
+                       force_rerun=None):
     """Run a concept and yield streaming status events over a WebSocket.
+
+    ``run_mode`` behaves as in :func:`run_concept` (``"single"`` / ``"auto"`` /
+    ``"all"``, default ``"auto"``; the legacy ``force_rerun`` boolean is still
+    accepted).
 
     Yields the raw server messages (dicts with an ``event`` key, e.g.
     ``concept_status``, ``complete``, ``error``). Iteration ends after the
@@ -55,7 +74,7 @@ def run_concept_stream(ontology_id, concept_name, params=None,
     """
     return JarvisPyClient.run_concept_stream(
         ontology_id=ontology_id, concept_name=concept_name,
-        params=params or {}, force_rerun=force_rerun,
+        params=params or {}, run_mode=run_mode, force_rerun=force_rerun,
         persist_outputs=persist_outputs, compute=compute)
 
 
