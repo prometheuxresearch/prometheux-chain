@@ -549,10 +549,11 @@ class JarvisPyClient:
 
     @staticmethod
     def run_concept(ontology_id, concept_name, params=None,
-                    force_rerun=True, persist_outputs=False, compute=None):
+                    run_mode=None, persist_outputs=False, compute=None,
+                    force_rerun=None):
         payload = {
             'params': params or {},
-            'force_rerun': force_rerun,
+            'run_mode': JarvisPyClient._resolve_run_mode(run_mode, force_rerun),
             'persist_outputs': persist_outputs,
         }
         if compute:
@@ -562,11 +563,26 @@ class JarvisPyClient:
                                        json=payload)
 
     @staticmethod
+    def _resolve_run_mode(run_mode, force_rerun):
+        """Resolve the run_mode to send to the backend.
+
+        ``run_mode`` wins when given. Otherwise the legacy ``force_rerun``
+        boolean maps ``True`` -> ``'all'`` and ``False`` -> ``'single'``. With
+        neither set, the backend default of ``'auto'`` is sent explicitly.
+        """
+        if run_mode is not None:
+            return run_mode
+        if force_rerun is not None:
+            return 'all' if force_rerun else 'single'
+        return 'auto'
+
+    @staticmethod
     def run_concept_stream(ontology_id, concept_name, params=None,
-                           force_rerun=True, persist_outputs=False, compute=None):
+                           run_mode=None, persist_outputs=False, compute=None,
+                           force_rerun=None):
         payload = {
             'params': params or {},
-            'force_rerun': force_rerun,
+            'run_mode': JarvisPyClient._resolve_run_mode(run_mode, force_rerun),
             'persist_outputs': persist_outputs,
         }
         if compute:
