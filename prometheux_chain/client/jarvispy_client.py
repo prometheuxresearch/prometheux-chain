@@ -335,6 +335,13 @@ class JarvisPyClient:
         return JarvisPyClient._request("POST", "/api/v1/ontologies/copy", json=payload)
 
     @staticmethod
+    def export_tree(ontology_id, slug=None):
+        payload = {'ontology_id': ontology_id}
+        if slug:
+            payload['slug'] = slug
+        return JarvisPyClient._request("POST", "/api/v1/ontologies/export-tree", json=payload)
+
+    @staticmethod
     def export_ontology(ontology_id):
         return JarvisPyClient._request("POST", "/api/v1/ontologies/export-ontology",
                                        json={'project_id': ontology_id})

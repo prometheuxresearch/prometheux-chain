@@ -28,6 +28,7 @@ from .ontology.manage_ontologies import list_ontologies
 from .ontology.manage_ontologies import load_ontology
 from .ontology.manage_ontologies import copy_ontology
 from .ontology.manage_ontologies import export_ontology
+from .ontology.manage_ontologies import export_tree
 from .ontology.manage_ontologies import import_ontology
 from .ontology.manage_ontologies import export_workspace
 from .ontology.manage_ontologies import import_workspace

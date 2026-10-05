@@ -51,6 +51,15 @@ def copy_ontology(ontology_id, new_ontology_name=None, compute=None):
         ontology_id=ontology_id, new_ontology_name=new_ontology_name, compute=compute), "copy")
 
 
+def export_tree(ontology_id, slug=None):
+    """Export a project as a file tree: ``{"ontology", "files", "warnings"}``.
+
+    ``files`` is a list of ``{"path", "content"}`` — the same tree the app's
+    Export downloads as a .zip. ``slug`` names the directory under ``ontologies/``.
+    """
+    return _check(JarvisPyClient.export_tree(ontology_id=ontology_id, slug=slug), "export tree")
+
+
 def export_ontology(ontology_id=None):
     """Export a single project."""
     return _check(JarvisPyClient.export_ontology(ontology_id=ontology_id), "export")
