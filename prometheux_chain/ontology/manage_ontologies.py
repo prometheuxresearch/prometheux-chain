@@ -6,6 +6,8 @@ Copyright (C) Prometheux Limited. All rights reserved.
 Author: Prometheux Limited
 """
 
+import warnings
+
 from ..client.jarvispy_client import JarvisPyClient
 
 
@@ -56,8 +58,23 @@ def export_ontology(ontology_id=None):
     return _check(JarvisPyClient.export_ontology(ontology_id=ontology_id), "export")
 
 
+_JSON_IMPORT_DEPRECATED = (
+    "{name}() is deprecated and will be removed in a future release. Ontologies now "
+    "move as a .zip file tree: export one from the app or with `px pull`, and import "
+    "it from the app or with `px apply`."
+)
+
+
+def _warn_deprecated(name):
+    warnings.warn(_JSON_IMPORT_DEPRECATED.format(name=name), DeprecationWarning, stacklevel=3)
+
+
 def import_ontology(export_data, force_new_id=False, compute=None):
-    """Import a project from exported data."""
+    """Import a project from exported data.
+
+    .. deprecated:: Use a .zip ontology tree with `px apply` or the app's Import.
+    """
+    _warn_deprecated("import_ontology")
     if not export_data or not isinstance(export_data, dict):
         raise ValueError("export_data must be a non-empty dictionary")
     return _check(JarvisPyClient.import_ontology(
@@ -65,12 +82,20 @@ def import_ontology(export_data, force_new_id=False, compute=None):
 
 
 def export_workspace():
-    """Export the entire workspace."""
+    """Export the entire workspace.
+
+    .. deprecated:: Use `px pull` for each ontology.
+    """
+    _warn_deprecated("export_workspace")
     return _check(JarvisPyClient.export_workspace(), "workspace export")
 
 
 def import_workspace(export_data):
-    """Import an entire workspace from exported data."""
+    """Import an entire workspace from exported data.
+
+    .. deprecated:: Use `px apply` on a pulled workspace.
+    """
+    _warn_deprecated("import_workspace")
     if not export_data or not isinstance(export_data, dict):
         raise ValueError("export_data must be a non-empty dictionary")
     return _check(JarvisPyClient.import_workspace(export_data=export_data), "workspace import")
