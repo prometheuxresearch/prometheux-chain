@@ -179,7 +179,16 @@ from .vadalog.manage_vadalog import analyze_program
 from .vadalog.manage_vadalog import build_bind
 from .vadalog.manage_vadalog import parse_binds
 from .vadalog.manage_vadalog import evaluate_program
+from .vadalog.manage_vadalog import generate_program
 from .vadalog.manage_vadalog import validate_concept
+
+# ── Vadalog checks (unit tests for programs) ────────────────────────────────
+from .testing.manage_checks import check_program
+from .testing.manage_checks import check_question
+from .testing.manage_checks import compare_rows
+from .testing.manage_checks import read_expected_csv
+from .testing.manage_checks import CheckReport
+from .testing.manage_checks import PredicateCheck
 
 # ── Vadalingo translation ───────────────────────────────────────────────────
 from .vadalingo.manage_vadalingo import translate_sql_to_vadalog
