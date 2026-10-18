@@ -1231,6 +1231,9 @@ class JarvisPyClient:
         response = JarvisPyClient._send(method, url, headers=headers, json=json, params=params)
         if response.status_code in (404, 405):
             raise Exception("Engine workers are not available on this platform")
+        if response.status_code == 402:
+            raise Exception("Engine workers are billed at your machine's hourly rate; "
+                            "add a payment method on the platform to use them")
         if response.status_code in (400, 409):
             try:
                 message = response.json().get('message')

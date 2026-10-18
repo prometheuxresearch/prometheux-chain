@@ -113,6 +113,14 @@ def test_a_refusal_raises_the_servers_message():
             px.set_engine_workers(1)
 
 
+def test_a_user_without_billing_is_told_why():
+    refused = _Response(402, {"code": "PAYMENT_REQUIRED", "error": "billing_required"})
+    with patch.object(JarvisPyClient, "_get_auth", return_value="t"), \
+            patch.object(JarvisPyClient, "_send", return_value=refused):
+        with pytest.raises(Exception, match="add a payment method"):
+            px.set_engine_workers(2)
+
+
 @pytest.mark.parametrize("status", [404, 405])
 def test_a_platform_without_workers_says_so(status):
     missing = _Response(status, {"detail": "Not Found"})

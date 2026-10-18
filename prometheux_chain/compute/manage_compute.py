@@ -61,12 +61,16 @@ def set_engine_workers(replicas, idle_minutes=None, user_machine_id=None):
 
     Program evaluations (``evaluate_program``, ``check_program``) are then spread
     across the machine and its ready workers, so independent programs sent at the
-    same time run in parallel. Each worker is another node of the machine's size;
-    the platform caps how many you may run. Workers nobody sends a program to for
-    ``idle_minutes`` (default 10) are removed automatically.
+    same time run in parallel. Each worker is another node of the machine's size,
+    billed at the machine's hourly rate from this call until it is removed; the
+    platform caps how many you may run. Workers nobody sends a program to for
+    ``idle_minutes`` (default 10, never longer than the machine's auto-termination)
+    are removed automatically.
 
-    Returns the workers' state: ``desired``, ``ready``, ``pods`` and ``engines``
-    (how many calls each engine is running and has run).
+    Returns the workers' state: ``desired``, ``ready``, ``pods``, ``engines`` (how
+    many calls each engine is running and has run) and ``billing``
+    (``cost_per_worker_hour_usd``, ``billed_workers``, ``billed_since``,
+    ``cost_since_usd``).
     """
     return JarvisPyClient.set_engine_workers(
         replicas, idle_minutes=idle_minutes, user_machine_id=user_machine_id).get("data") or {}

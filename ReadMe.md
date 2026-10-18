@@ -229,11 +229,11 @@ at the same time are spread across the machine and its workers, so a suite run
 with parallel callers (threads, or `pytest -n` from `pytest-xdist`) finishes
 sooner: 20 two-second cases took 7.5 s with six callers on a 4-core machine
 alone, and 5.1 s with two warm workers. Each worker is another node of the
-machine's size and takes up to a few minutes to start, and its first programs
-run slower while the engine warms up, so workers pay off on suites that take
-minutes. The block waits until all are ready and removes them when it ends,
-even if a test raised. Workers nobody sends a program to for ten minutes are
-removed automatically.
+machine's size, billed at the machine's hourly rate until it is removed, and
+takes up to a few minutes to start; its first programs run slower while the
+engine warms up, so workers pay off on suites that take minutes. The block
+waits until all are ready and removes them when it ends, even if a test raised.
+Workers nobody sends a program to for ten minutes are removed automatically.
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
