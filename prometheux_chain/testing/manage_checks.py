@@ -13,9 +13,12 @@ Author: Prometheux Limited
 
 import csv
 import json
+import math
 import os
 import re
+from collections import Counter
 from dataclasses import asdict, dataclass, field
+from decimal import Decimal
 from typing import Any, Dict, List, Mapping, Optional
 
 from ..vadalog.manage_vadalog import evaluate_program, generate_program
@@ -95,17 +98,23 @@ class CheckReport:
 def normalize_cell(value):
     """A cell in a form that compares equal however it was serialized.
 
-    Numbers collapse to float, so ``2``, ``"2"`` and ``2.0`` match. Booleans
-    become ``"true"``/``"false"``, because a CSV can only spell them as text;
-    the engine's own ``#T``/``#F`` count as booleans too.
+    Numbers become exact decimals, so ``2``, ``"2"`` and ``2.0`` match while
+    ``2**53`` and ``2**53 + 1`` stay apart. A float is read as the shortest
+    decimal that spells it, so the engine's ``0.1`` matches a CSV's ``0.1``.
+    Booleans become ``"true"``/``"false"``, because a CSV can only spell them
+    as text; the engine's own ``#T``/``#F`` count as booleans too.
     """
     if isinstance(value, bool):
         return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        return float(value)
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, int):
+        return Decimal(value)
+    if isinstance(value, float):
+        return Decimal(repr(value)) if math.isfinite(value) else value
     text = str(value).strip()
     if _NUMBER.match(text):
-        return float(text)
+        return Decimal(text)
     return _BOOLEANS.get(text.lower(), text)
 
 
@@ -132,27 +141,31 @@ def read_expected_csv(path, header=False) -> List[tuple]:
 def compare_rows(predicate, actual, expected, mode=EXACT) -> PredicateCheck:
     """Compare the rows a predicate produced with the rows expected of it.
 
-    ``exact`` passes when the row counts match and neither side has a row the
-    other lacks. ``contains`` passes when every expected row was produced,
-    whatever else was. ``missing`` and ``extra`` list the rows as they were
-    given rather than in their normalized form.
+    ``exact`` passes when both sides hold the same rows the same number of
+    times, in any order; ``missing`` and ``extra`` then list every occurrence
+    one side has beyond the other, so a row expected twice but produced once
+    is missing once. ``contains`` passes when every expected row was produced
+    at least once, whatever else was, and lists each missing row once. Rows
+    are listed as they were given rather than in their normalized form.
     """
     _check_mode(mode)
     actual_rows = [normalize_row(row) for row in actual]
     expected_rows = [normalize_row(row) for row in expected]
-    actual_set, expected_set = set(actual_rows), set(expected_rows)
-    missing = [_display_row(row) for row, key in zip(expected, expected_rows)
-               if key not in actual_set]
-    extra = [_display_row(row) for row, key in zip(actual, actual_rows)
-             if key not in expected_set]
     if mode == CONTAINS:
+        actual_set, expected_set = set(actual_rows), set(expected_rows)
+        missing = _unique([_display_row(row) for row, key in zip(expected, expected_rows)
+                           if key not in actual_set])
+        extra = _unique([_display_row(row) for row, key in zip(actual, actual_rows)
+                         if key not in expected_set])
         ok = not missing
     else:
-        ok = not missing and not extra and len(actual_rows) == len(expected_rows)
+        missing = _surplus(expected, expected_rows, Counter(actual_rows))
+        extra = _surplus(actual, actual_rows, Counter(expected_rows))
+        ok = not missing and not extra
     return PredicateCheck(
         predicate=predicate, ok=ok, mode=mode,
         actual_count=len(actual_rows), expected_count=len(expected_rows),
-        missing=_unique(missing), extra=_unique(extra),
+        missing=missing, extra=extra,
     )
 
 
@@ -245,10 +258,30 @@ def _check_mode(mode):
         raise ValueError(f"mode must be one of {', '.join(MODES)}, got {mode!r}")
 
 
+def _surplus(rows, keys, budget: Counter) -> list:
+    """The rows, in order, left over once ``budget`` has absorbed its occurrences."""
+    budget = Counter(budget)
+    left = []
+    for row, key in zip(rows, keys):
+        if budget[key] > 0:
+            budget[key] -= 1
+        else:
+            left.append(_display_row(row))
+    return left
+
+
 def _display_row(row) -> list:
-    # Rows read from a CSV arrive already normalized, so 2 has become 2.0.
-    return [int(cell) if isinstance(cell, float) and cell.is_integer() else cell
-            for cell in row]
+    # Rows read from a CSV arrive already normalized, so 2 has become Decimal(2).
+    return [_display_cell(cell) for cell in row]
+
+
+def _display_cell(cell):
+    if not isinstance(cell, Decimal):
+        return cell
+    if cell == cell.to_integral_value():
+        return int(cell)
+    as_float = float(cell)
+    return as_float if Decimal(repr(as_float)) == cell else str(cell)
 
 
 def _unique(rows):

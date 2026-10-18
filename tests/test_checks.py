@@ -32,6 +32,61 @@ def test_numbers_match_however_they_were_serialized():
     assert check.ok
 
 
+@pytest.mark.parametrize("actual, expected", [
+    (2**53, 2**53 + 1),
+    (str(2**53), str(2**53 + 1)),
+    (2**53, str(2**53 + 1)),
+    ("0.10000000000000000001", "0.1"),
+])
+def test_numbers_that_differ_never_match(actual, expected):
+    assert not px.compare_rows("p", [[actual]], [[expected]]).ok
+
+
+def test_a_large_number_in_a_csv_keeps_every_digit(tmp_path):
+    path = tmp_path / "ids.csv"
+    path.write_text(f"{2**53 + 1}\n", encoding="utf-8")
+    check = px.compare_rows("ids", [[str(2**53)]], px.read_expected_csv(path))
+
+    assert not check.ok
+    assert check.missing == [[2**53 + 1]]
+
+
+def test_a_float_matches_the_decimal_it_prints_as():
+    assert px.compare_rows("p", [[0.1, 1e16, -2.5]], [["0.1", "10000000000000000", "-2.50"]]).ok
+
+
+def test_exact_compares_how_often_each_row_occurs():
+    check = px.compare_rows("p", [[1], [1], [2]], [[1], [2], [2]])
+
+    assert not check.ok
+    assert check.missing == [[2]]
+    assert check.extra == [[1]]
+
+
+def test_exact_counts_rows_that_normalize_to_the_same_value():
+    check = px.compare_rows("p", [["1"], ["1.0"], ["2"]], [["1"], ["2"], ["2"]])
+
+    assert not check.ok
+    assert check.missing == [["2"]]
+    assert check.extra == [["1.0"]]
+
+
+def test_exact_reports_a_duplicate_the_engine_produced_once_too_often():
+    check = px.compare_rows("p", [[1], [1]], [[1]])
+
+    assert not check.ok
+    assert check.extra == [[1]]
+    assert check.missing == []
+
+
+def test_exact_passes_on_the_same_duplicates_in_any_order():
+    assert px.compare_rows("p", [[2], [1], [2]], [["2"], ["2.0"], [1]]).ok
+
+
+def test_contains_needs_each_expected_row_only_once():
+    assert px.compare_rows("p", [[1]], [[1], [1]], mode="contains").ok
+
+
 def test_booleans_match_their_csv_spelling():
     assert px.compare_rows("p", [[True, False]], [["true", "False"]]).ok
 
