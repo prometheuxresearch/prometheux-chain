@@ -140,7 +140,9 @@ covering the user-facing JarvisPy backend:
 - **Auth / tokens** — `issue_token`, `list_tokens`, `revoke_token`,
   `revoke_specific_token`, `revoke_all_tokens`.
 - **Vadalog authoring** — `analyze_program`, `build_bind`, `parse_binds`,
-  `evaluate_program`, `validate_concept`.
+  `evaluate_program`, `generate_program`, `validate_concept`.
+- **Vadalog checks** — `check_program`, `check_question`, `compare_rows`,
+  `read_expected_csv` (see [Testing Vadalog programs](#testing-vadalog-programs)).
 - **Vadalingo translation** — `translate_sql_to_vadalog`,
   `translate_rdf_to_vadalog`, `translate_owl_to_vadalog`.
 
@@ -176,6 +178,43 @@ for event in px.run_concept_stream(ontology_id=ontology_id, concept_name="locati
 for event in px.auto_seed(scope="project", scope_id=ontology_id):
     print(event)
 ```
+
+## Testing Vadalog programs
+
+`check_program` evaluates a program on the platform engine and compares each
+output predicate with the rows you expect, given as a CSV file (one row per
+line, no header unless `header=True`) or as a list of rows. Numbers compare
+equal however they were serialized, so `2`, `"2"` and `2.0` match.
+
+```python
+report = px.check_program(open("tc.vada").read(), expect={"tc": "tc.csv"})
+print(report.summary())
+report.assert_ok()   # raises AssertionError with the summary when a check fails
+```
+
+`mode="exact"` (the default) passes when the rows are the same and so is their
+count; `mode="contains"` passes when every expected row was produced. The
+report never raises on its own: an engine error or a predicate the program did
+not produce is a failed report, so it drops straight into pytest:
+
+```python
+def test_transitive_closure():
+    px.check_program(open("tc.vada").read(), expect={"tc": [[1, 2], [2, 3], [1, 3]]}).assert_ok()
+```
+
+`check_question` asks the natural-language translator for the program first,
+then checks it the same way. Given a single CSV, it checks the generated
+program's last `@output` predicate unless you name one with `expect_predicate`.
+`report.program` holds the generated program. Each call counts as one program
+generation in your usage.
+
+```python
+report = px.check_question("Transitive closure of edge(X,Y). Output as tc.",
+                           expect="tc.csv", mode="contains")
+```
+
+The `px test` command of the [Prometheux CLI](https://github.com/prometheuxresearch/prometheux-cli)
+runs the same checks from the shell and over a folder of test cases.
 
 ## Tokens
 

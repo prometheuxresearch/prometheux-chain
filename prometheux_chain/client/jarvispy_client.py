@@ -1233,6 +1233,15 @@ class JarvisPyClient:
         return JarvisPyClient._request("POST", "/api/v1/vadalog/evaluate", json=payload)
 
     @staticmethod
+    def generate_program(query, context=None):
+        # The route passes the translator's JSON through as is, without the
+        # usual {status, data} envelope.
+        payload = {'query': query}
+        if context:
+            payload['context'] = context
+        return JarvisPyClient._request("POST", "/api/v1/vadalog/program", json=payload)
+
+    @staticmethod
     def validate_concept(definition, concept_type="logic", concept_name="",
                          ontology_id=None, concept_config=None):
         payload = {
