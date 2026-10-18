@@ -29,6 +29,7 @@ _SHOWN_ROWS = 8
 
 _NUMBER = re.compile(r"^-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?$")
 _OUTPUT_ANNOTATION = re.compile(r'@output\(\s*"([^"]+)"')
+_BOOLEANS = {"true": "true", "#t": "true", "false": "false", "#f": "false"}
 
 Rows = List[List[Any]]
 
@@ -95,7 +96,8 @@ def normalize_cell(value):
     """A cell in a form that compares equal however it was serialized.
 
     Numbers collapse to float, so ``2``, ``"2"`` and ``2.0`` match. Booleans
-    become ``"true"``/``"false"``, because a CSV can only spell them as text.
+    become ``"true"``/``"false"``, because a CSV can only spell them as text;
+    the engine's own ``#T``/``#F`` count as booleans too.
     """
     if isinstance(value, bool):
         return "true" if value else "false"
@@ -104,9 +106,7 @@ def normalize_cell(value):
     text = str(value).strip()
     if _NUMBER.match(text):
         return float(text)
-    if text.lower() in ("true", "false"):
-        return text.lower()
-    return text
+    return _BOOLEANS.get(text.lower(), text)
 
 
 def normalize_row(row) -> tuple:
@@ -180,8 +180,9 @@ def check_program(program, expect=None, mode=EXACT, params=None, compute=None,
         return CheckReport(ok=False, error=f"engine error: {evaluation['errorMessage']}",
                            program=program)
     result_set = (evaluation.get("resultSet") if isinstance(evaluation, dict) else None) or {}
+    outputs = set(_OUTPUT_ANNOTATION.findall(program or ""))
 
-    checks = [_check_predicate(result_set, predicate, rows, mode, header)
+    checks = [_check_predicate(result_set, outputs, predicate, rows, mode, header)
               for predicate, rows in (expect or {}).items()]
     return CheckReport(ok=all(check.ok for check in checks), checks=checks,
                        result_set=result_set, program=program)
@@ -224,18 +225,19 @@ def detect_output_predicate(program) -> Optional[str]:
     return outputs[-1] if outputs else None
 
 
-def _check_predicate(result_set, predicate, expected, mode, header) -> PredicateCheck:
-    if predicate not in result_set:
-        produced = ", ".join(result_set) or "none"
+def _check_predicate(result_set, outputs, predicate, expected, mode, header) -> PredicateCheck:
+    # The engine leaves an @output that derived no rows out of the result set.
+    if predicate not in result_set and predicate not in outputs:
+        produced = ", ".join(result_set) or "no rows for any predicate"
         return PredicateCheck(predicate=predicate, ok=False, mode=mode,
-                              error=f"not in the result set (produced: {produced})")
+                              error=f"not an output of the program (produced: {produced})")
     if isinstance(expected, (str, os.PathLike)):
         try:
             expected = read_expected_csv(expected, header=header)
         except OSError as exc:
             return PredicateCheck(predicate=predicate, ok=False, mode=mode,
                                   error=f"cannot read expected CSV: {exc}")
-    return compare_rows(predicate, result_set[predicate], expected, mode)
+    return compare_rows(predicate, result_set.get(predicate, []), expected, mode)
 
 
 def _check_mode(mode):
