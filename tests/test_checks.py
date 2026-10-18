@@ -36,6 +36,10 @@ def test_booleans_match_their_csv_spelling():
     assert px.compare_rows("p", [[True, False]], [["true", "False"]]).ok
 
 
+def test_the_engines_boolean_literals_match_too():
+    assert px.compare_rows("p", [["#T", "#F"]], [["true", "false"]]).ok
+
+
 def test_exact_fails_on_an_extra_row_and_reports_it():
     check = px.compare_rows("tc", [[1, 2], [2, 3]], [[1, 2]])
     assert not check.ok
@@ -107,6 +111,16 @@ def test_a_predicate_the_program_did_not_produce_fails_with_what_it_did():
 
     assert not report.ok
     assert "produced: tc" in report.checks[0].error
+
+
+def test_an_output_that_derived_no_rows_counts_as_empty():
+    program = '@output("tc").\n@output("none").\ntc(X,Y) :- edge(X,Y).'
+    with _engine(TC_RESULT):
+        assert px.check_program(program, expect={"none": []}).ok
+        report = px.check_program(program, expect={"none": [[1, 2]]})
+
+    assert not report.ok
+    assert report.checks[0].missing == [[1, 2]]
 
 
 def test_an_engine_error_is_a_failed_report_not_an_exception():
