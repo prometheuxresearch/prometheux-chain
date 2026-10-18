@@ -173,6 +173,10 @@ from .compute.manage_compute import set_machine_active
 from .compute.manage_compute import get_machine_status
 from .compute.manage_compute import use_machine
 from .compute.manage_compute import delete_user_machine
+from .compute.manage_compute import set_engine_workers
+from .compute.manage_compute import get_engine_workers
+from .compute.manage_compute import wait_for_engine_workers
+from .compute.manage_compute import engine_workers
 
 # ── Vadalog authoring ───────────────────────────────────────────────────────
 from .vadalog.manage_vadalog import analyze_program
