@@ -1229,6 +1229,8 @@ class JarvisPyClient:
         url = f"{config['JARVISPY_URL']}/api/v1/machines/workers"
         headers = JarvisPyClient._headers(JarvisPyClient._get_auth())
         response = JarvisPyClient._send(method, url, headers=headers, json=json, params=params)
+        if response.status_code in (404, 405):
+            raise Exception("Engine workers are not available on this platform")
         if response.status_code in (400, 409):
             try:
                 message = response.json().get('message')

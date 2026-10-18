@@ -220,14 +220,20 @@ runs the same checks from the shell and over a folder of test cases.
 
 ### Running a suite faster with engine workers
 
+Engine workers are in preview and enabled on selected workspaces only; elsewhere
+these calls raise "Engine workers are not available on this platform".
+
 With a compute machine running, `engine_workers(n)` adds `n` engine-only
 replicas beside it for the duration of a `with` block. Program evaluations sent
 at the same time are spread across the machine and its workers, so a suite run
-with parallel callers (threads, or `pytest -n` from `pytest-xdist`) finishes in
-roughly a third of the time with two workers. Each worker is another node of the
-machine's size and takes a few minutes to start; the block waits until all are
-ready and removes them when it ends, even if a test raised. Workers nobody sends
-a program to for ten minutes are removed automatically.
+with parallel callers (threads, or `pytest -n` from `pytest-xdist`) finishes
+sooner: 20 two-second cases took 7.5 s with six callers on a 4-core machine
+alone, and 5.1 s with two warm workers. Each worker is another node of the
+machine's size and takes up to a few minutes to start, and its first programs
+run slower while the engine warms up, so workers pay off on suites that take
+minutes. The block waits until all are ready and removes them when it ends,
+even if a test raised. Workers nobody sends a program to for ten minutes are
+removed automatically.
 
 ```python
 from concurrent.futures import ThreadPoolExecutor

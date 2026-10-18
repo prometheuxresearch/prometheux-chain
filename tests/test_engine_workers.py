@@ -111,3 +111,12 @@ def test_a_refusal_raises_the_servers_message():
             patch.object(JarvisPyClient, "_send", return_value=refusal):
         with pytest.raises(Exception, match="No compute machine is running"):
             px.set_engine_workers(1)
+
+
+@pytest.mark.parametrize("status", [404, 405])
+def test_a_platform_without_workers_says_so(status):
+    missing = _Response(status, {"detail": "Not Found"})
+    with patch.object(JarvisPyClient, "_get_auth", return_value="t"), \
+            patch.object(JarvisPyClient, "_send", return_value=missing):
+        with pytest.raises(Exception, match="not available on this platform"):
+            px.get_engine_workers()
