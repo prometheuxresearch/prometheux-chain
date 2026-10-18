@@ -39,18 +39,30 @@ def test_booleans_match_their_csv_spelling():
 def test_exact_fails_on_an_extra_row_and_reports_it():
     check = px.compare_rows("tc", [[1, 2], [2, 3]], [[1, 2]])
     assert not check.ok
-    assert check.extra == [[2.0, 3.0]]
+    assert check.extra == [[2, 3]]
     assert check.missing == []
 
 
 def test_contains_ignores_extra_rows():
-    assert px.compare_rows("tc", [[1, 2], [2, 3]], [[1, 2]], mode="contains").ok
+    check = px.compare_rows("tc", [[1, 2], [2, 3]], [[1, 2]], mode="contains")
+    assert check.ok
+    assert "MISMATCH" not in check.summary()
 
 
 def test_contains_still_fails_on_a_missing_row():
     check = px.compare_rows("tc", [[1, 2]], [[1, 2], [9, 9]], mode="contains")
     assert not check.ok
-    assert check.missing == [[9.0, 9.0]]
+    assert check.missing == [[9, 9]]
+
+
+def test_reported_rows_keep_the_values_they_were_given(tmp_path):
+    path = tmp_path / "tc.csv"
+    path.write_text("1,2\n9,9.5\n", encoding="utf-8")
+    check = px.compare_rows("tc", [[1, 2], [3, "x"]], px.read_expected_csv(path))
+
+    assert check.missing == [[9, 9.5]]
+    assert check.extra == [[3, "x"]]
+    assert "missing=[[9, 9.5]]" in check.summary()
 
 
 def test_an_unknown_mode_is_refused():
@@ -84,7 +96,7 @@ def test_rows_can_be_given_inline():
 
     assert not report.ok
     (check,) = report.checks
-    assert check.extra == [[1.0, 3.0]]
+    assert check.extra == [[1, 3]]
     with pytest.raises(AssertionError, match="tc: FAIL"):
         report.assert_ok()
 
