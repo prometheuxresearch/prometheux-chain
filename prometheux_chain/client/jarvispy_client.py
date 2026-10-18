@@ -1206,6 +1206,38 @@ class JarvisPyClient:
         return JarvisPyClient._request(
             "DELETE", f"/api/v1/machines/user-machines/{quote(str(user_machine_id), safe='')}")
 
+    @staticmethod
+    def set_engine_workers(replicas, idle_minutes=None, user_machine_id=None):
+        """Run N engine-only workers beside the active (or given) machine; 0 removes them."""
+        body = {'replicas': int(replicas)}
+        if idle_minutes is not None:
+            body['idle_minutes'] = int(idle_minutes)
+        if user_machine_id is not None:
+            body['user_machine_id'] = user_machine_id
+        return JarvisPyClient._workers_request("PUT", json=body)
+
+    @staticmethod
+    def get_engine_workers(user_machine_id=None):
+        """Desired and ready engine workers beside the active (or given) machine."""
+        params = {'user_machine_id': user_machine_id} if user_machine_id is not None else None
+        return JarvisPyClient._workers_request("GET", params=params)
+
+    @staticmethod
+    def _workers_request(method, json=None, params=None):
+        # Refusals (no running machine, over the cap) carry a message worth
+        # showing as is, rather than the generic "HTTP Error 409: {...}".
+        url = f"{config['JARVISPY_URL']}/api/v1/machines/workers"
+        headers = JarvisPyClient._headers(JarvisPyClient._get_auth())
+        response = JarvisPyClient._send(method, url, headers=headers, json=json, params=params)
+        if response.status_code in (400, 409):
+            try:
+                message = response.json().get('message')
+            except ValueError:
+                message = None
+            if message:
+                raise Exception(message)
+        return JarvisPyClient._handle_response(response)
+
     # ── Vadalog authoring ─────────────────────────────────────────────────
 
     @staticmethod

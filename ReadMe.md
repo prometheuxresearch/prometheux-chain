@@ -143,6 +143,8 @@ covering the user-facing JarvisPy backend:
   `evaluate_program`, `generate_program`, `validate_concept`.
 - **Vadalog checks** — `check_program`, `check_question`, `compare_rows`,
   `read_expected_csv` (see [Testing Vadalog programs](#testing-vadalog-programs)).
+- **Engine workers** — `engine_workers`, `set_engine_workers`,
+  `get_engine_workers`, `wait_for_engine_workers`.
 - **Vadalingo translation** — `translate_sql_to_vadalog`,
   `translate_rdf_to_vadalog`, `translate_owl_to_vadalog`.
 
@@ -215,6 +217,30 @@ report = px.check_question("Transitive closure of edge(X,Y). Output as tc.",
 
 The `px test` command of the [Prometheux CLI](https://github.com/prometheuxresearch/prometheux-cli)
 runs the same checks from the shell and over a folder of test cases.
+
+### Running a suite faster with engine workers
+
+With a compute machine running, `engine_workers(n)` adds `n` engine-only
+replicas beside it for the duration of a `with` block. Program evaluations sent
+at the same time are spread across the machine and its workers, so a suite run
+with parallel callers (threads, or `pytest -n` from `pytest-xdist`) finishes in
+roughly a third of the time with two workers. Each worker is another node of the
+machine's size and takes a few minutes to start; the block waits until all are
+ready and removes them when it ends, even if a test raised. Workers nobody sends
+a program to for ten minutes are removed automatically.
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+
+with px.engine_workers(2):
+    with ThreadPoolExecutor(6) as pool:
+        reports = list(pool.map(lambda case: px.check_program(case.program, expect=case.expect),
+                                cases))
+```
+
+`set_engine_workers(n)` and `get_engine_workers()` do the same without the
+block; `get_engine_workers()["engines"]` shows how many programs each engine
+has run.
 
 ## Tokens
 
