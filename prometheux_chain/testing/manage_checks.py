@@ -49,10 +49,11 @@ class PredicateCheck:
     def summary(self) -> str:
         if self.error:
             return f"{self.predicate}: FAIL :: {self.error}"
-        count_ok = self.actual_count == self.expected_count
+        count = f"count actual={self.actual_count} expected={self.expected_count}"
+        if self.mode == EXACT:
+            count += " (OK)" if self.actual_count == self.expected_count else " (MISMATCH)"
         parts = [
-            f"count actual={self.actual_count} expected={self.expected_count} "
-            f"({'OK' if count_ok else 'MISMATCH'})",
+            count,
             "containment " + ("OK" if not self.missing else f"FAIL missing={_shown(self.missing)}"),
         ]
         if self.mode == EXACT and self.extra:
@@ -133,14 +134,17 @@ def compare_rows(predicate, actual, expected, mode=EXACT) -> PredicateCheck:
 
     ``exact`` passes when the row counts match and neither side has a row the
     other lacks. ``contains`` passes when every expected row was produced,
-    whatever else was.
+    whatever else was. ``missing`` and ``extra`` list the rows as they were
+    given rather than in their normalized form.
     """
     _check_mode(mode)
     actual_rows = [normalize_row(row) for row in actual]
     expected_rows = [normalize_row(row) for row in expected]
     actual_set, expected_set = set(actual_rows), set(expected_rows)
-    missing = [list(row) for row in expected_rows if row not in actual_set]
-    extra = [list(row) for row in actual_rows if row not in expected_set]
+    missing = [_display_row(row) for row, key in zip(expected, expected_rows)
+               if key not in actual_set]
+    extra = [_display_row(row) for row, key in zip(actual, actual_rows)
+             if key not in expected_set]
     if mode == CONTAINS:
         ok = not missing
     else:
@@ -239,10 +243,16 @@ def _check_mode(mode):
         raise ValueError(f"mode must be one of {', '.join(MODES)}, got {mode!r}")
 
 
+def _display_row(row) -> list:
+    # Rows read from a CSV arrive already normalized, so 2 has become 2.0.
+    return [int(cell) if isinstance(cell, float) and cell.is_integer() else cell
+            for cell in row]
+
+
 def _unique(rows):
     seen, unique = set(), []
     for row in rows:
-        key = tuple(row)
+        key = normalize_row(row)
         if key not in seen:
             seen.add(key)
             unique.append(row)
