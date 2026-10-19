@@ -118,6 +118,17 @@ def test_bad_budgets_fall_back_to_safe_values(monkeypatch, value, expected):
     assert JarvisPyClient._busy_retry_budget() == expected
 
 
+def test_evaluation_status_returns_the_capacity(clock):
+    status = _Response(200, {"status": "success", "data": {
+        "status": "ready", "runs_in_flight": 0, "engine_calls_in_flight": 3,
+        "engine_call_capacity": 24}})
+    with patch.object(JarvisPyClient, "_send", return_value=status) as send:
+        data = px.evaluation_status()
+    assert data["engine_call_capacity"] == 24
+    assert send.call_args.args[0] == "GET"
+    assert send.call_args.args[1].endswith("/api/v1/vadalog/status")
+
+
 def test_check_program_passes_after_a_busy_refusal(clock):
     with patch.object(JarvisPyClient, "_send", side_effect=[BUSY, DONE]):
         report = px.check_program("p(1). @output(\"p\").", expect={"p": [[1]]})

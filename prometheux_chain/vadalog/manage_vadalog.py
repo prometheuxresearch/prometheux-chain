@@ -55,6 +55,18 @@ def evaluate_program(program, params=None, compute=None):
     ), "evaluate")
 
 
+def evaluation_status():
+    """Whether the workspace takes a new evaluation now, and how many it takes at once.
+
+    Returns ``status`` ("ready" or "busy"), ``runs_in_flight``,
+    ``engine_calls_in_flight`` and, on platforms that report it,
+    ``engine_call_capacity``: how many evaluations run at the same time, the
+    useful upper bound for client-side parallelism. Calls past it are refused
+    as busy (and retried by ``evaluate_program``).
+    """
+    return _check(JarvisPyClient.evaluation_status(), "status")
+
+
 def generate_program(question, context=None):
     """Translate a natural-language question into a Vadalog program.
 

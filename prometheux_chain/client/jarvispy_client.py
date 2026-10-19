@@ -1323,6 +1323,10 @@ class JarvisPyClient:
                                                      json=payload)
 
     @staticmethod
+    def evaluation_status():
+        return JarvisPyClient._request("GET", "/api/v1/vadalog/status")
+
+    @staticmethod
     def generate_program(query, context=None):
         # The route passes the translator's JSON through as is, without the
         # usual {status, data} envelope.
