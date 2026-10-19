@@ -9,7 +9,9 @@ Author: Prometheux Limited
 import json
 import json as _json
 import os
+import random
 import re
+import time
 from urllib.parse import quote, urlencode
 
 import requests
@@ -99,6 +101,56 @@ class JarvisPyClient:
         read = _as_float(config.get('JARVISPY_READ_TIMEOUT'),
                         JarvisPyClient._DEFAULT_READ_TIMEOUT)
         return (connect, read)
+
+    # A workspace refuses an evaluation with 409 ENGINE_BUSY when it is already
+    # running as many engine calls as it takes. The evaluation never started, so
+    # it is sent again until this budget (seconds) runs out. Overridable via
+    # config or the ENGINE_BUSY_RETRY_SECONDS environment variable; 0 disables.
+    _DEFAULT_BUSY_RETRY_SECONDS = 120.0
+    _MAX_BUSY_RETRY_SECONDS = 3600.0
+    _BUSY_FIRST_DELAY = 0.5
+    _BUSY_MAX_DELAY = 5.0
+
+    @staticmethod
+    def _busy_retry_budget():
+        value = os.environ.get('ENGINE_BUSY_RETRY_SECONDS',
+                               config.get('ENGINE_BUSY_RETRY_SECONDS'))
+        if value is None:
+            return JarvisPyClient._DEFAULT_BUSY_RETRY_SECONDS
+        try:
+            budget = float(value)
+        except (TypeError, ValueError):
+            return JarvisPyClient._DEFAULT_BUSY_RETRY_SECONDS
+        if budget != budget:  # NaN
+            return JarvisPyClient._DEFAULT_BUSY_RETRY_SECONDS
+        return min(max(budget, 0.0), JarvisPyClient._MAX_BUSY_RETRY_SECONDS)
+
+    @staticmethod
+    def _is_engine_busy(response):
+        if response.status_code != 409:
+            return False
+        try:
+            body = response.json()
+        except ValueError:
+            return False
+        data = body.get('data') if isinstance(body, dict) else None
+        return isinstance(data, dict) and data.get('errorCode') == 'ENGINE_BUSY'
+
+    @staticmethod
+    def _request_retrying_busy(method, path, json=None):
+        """Like ``_request``, but sends the call again while the workspace is busy."""
+        pmtx_token = JarvisPyClient._get_auth()
+        url = f"{config['JARVISPY_URL']}{path}"
+        headers = JarvisPyClient._headers(pmtx_token)
+        deadline = time.monotonic() + JarvisPyClient._busy_retry_budget()
+        delay = JarvisPyClient._BUSY_FIRST_DELAY
+        while True:
+            response = JarvisPyClient._send(method, url, headers=headers, json=json)
+            remaining = deadline - time.monotonic()
+            if not JarvisPyClient._is_engine_busy(response) or remaining <= 0:
+                return JarvisPyClient._handle_response(response)
+            time.sleep(min(remaining, delay * random.uniform(0.5, 1.0)))
+            delay = min(delay * 2, JarvisPyClient._BUSY_MAX_DELAY)
 
     @staticmethod
     def _send(method, url, **kwargs):
@@ -1267,7 +1319,8 @@ class JarvisPyClient:
         payload = {'program': program, 'params': params or {}}
         if compute:
             payload['compute'] = compute
-        return JarvisPyClient._request("POST", "/api/v1/vadalog/evaluate", json=payload)
+        return JarvisPyClient._request_retrying_busy("POST", "/api/v1/vadalog/evaluate",
+                                                     json=payload)
 
     @staticmethod
     def generate_program(query, context=None):

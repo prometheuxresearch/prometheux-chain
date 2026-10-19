@@ -44,7 +44,12 @@ def parse_binds(program, output_predicate=""):
 
 
 def evaluate_program(program, params=None, compute=None):
-    """Evaluate a Vadalog program directly with the given parameters."""
+    """Evaluate a Vadalog program directly with the given parameters.
+
+    When the workspace is already running as many evaluations as it takes, the
+    call waits and is sent again, for up to ``ENGINE_BUSY_RETRY_SECONDS``
+    (config or environment, default 120; 0 disables) before raising.
+    """
     return _check(JarvisPyClient.evaluate_program(
         program=program, params=params, compute=compute,
     ), "evaluate")
