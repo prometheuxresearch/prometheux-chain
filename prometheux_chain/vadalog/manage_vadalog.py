@@ -43,16 +43,38 @@ def parse_binds(program, output_predicate=""):
     ), "parse binds")
 
 
-def evaluate_program(program, params=None, compute=None):
+def evaluate_program(program, params=None, compute=None, execution_id=None):
     """Evaluate a Vadalog program directly with the given parameters.
 
     When the workspace is already running as many evaluations as it takes, the
     call waits and is sent again, for up to ``ENGINE_BUSY_RETRY_SECONDS``
     (config or environment, default 120; 0 disables) before raising.
+
+    ``execution_id`` is an id of your choosing, shared by every evaluation you
+    may want to stop together: ``stop_evaluation(execution_id)`` stops them
+    and leaves everyone else's running.
     """
     return _check(JarvisPyClient.evaluate_program(
-        program=program, params=params, compute=compute,
+        program=program, params=params, compute=compute, execution_id=execution_id,
     ), "evaluate")
+
+
+def stop_evaluation(execution_id=None):
+    """Stop the evaluations sent with ``execution_id``, or a run with that id.
+
+    A call waiting on them raises "Execution stopped by user." within a
+    second, and later calls with the same id are refused for a few minutes.
+    The engine itself is stopped only when nothing else is running on it.
+
+    Without ``execution_id``     every evaluation and run on the workspace is
+    stopped, other users' included: the Stop button's behaviour.
+    """
+    response = JarvisPyClient.stop_evaluation(execution_id=execution_id) or {}
+    # When the engine is stopped too, its own answer comes back as is, without
+    # the usual {status, data} envelope.
+    if response.get('status') == 'error':
+        raise Exception(f"Vadalog stop failed: {response.get('message', 'Unknown error')}")
+    return response.get('data') if 'status' in response else response
 
 
 def evaluation_status():

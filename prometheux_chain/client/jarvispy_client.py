@@ -1315,16 +1315,23 @@ class JarvisPyClient:
                                        json={'program': program, 'outputPredicate': output_predicate})
 
     @staticmethod
-    def evaluate_program(program, params=None, compute=None):
+    def evaluate_program(program, params=None, compute=None, execution_id=None):
         payload = {'program': program, 'params': params or {}}
         if compute:
             payload['compute'] = compute
+        if execution_id:
+            payload['execution_id'] = execution_id
         return JarvisPyClient._request_retrying_busy("POST", "/api/v1/vadalog/evaluate",
                                                      json=payload)
 
     @staticmethod
     def evaluation_status():
         return JarvisPyClient._request("GET", "/api/v1/vadalog/status")
+
+    @staticmethod
+    def stop_evaluation(execution_id=None):
+        params = {'execution_id': execution_id} if execution_id else None
+        return JarvisPyClient._request("GET", "/api/v1/vadalog/stop", params=params)
 
     @staticmethod
     def generate_program(query, context=None):

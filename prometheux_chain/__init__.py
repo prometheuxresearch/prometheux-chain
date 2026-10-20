@@ -184,6 +184,7 @@ from .vadalog.manage_vadalog import build_bind
 from .vadalog.manage_vadalog import parse_binds
 from .vadalog.manage_vadalog import evaluate_program
 from .vadalog.manage_vadalog import evaluation_status
+from .vadalog.manage_vadalog import stop_evaluation
 from .vadalog.manage_vadalog import generate_program
 from .vadalog.manage_vadalog import validate_concept
 

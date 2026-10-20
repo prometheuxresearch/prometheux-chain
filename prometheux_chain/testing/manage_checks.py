@@ -170,13 +170,15 @@ def compare_rows(predicate, actual, expected, mode=EXACT) -> PredicateCheck:
 
 
 def check_program(program, expect=None, mode=EXACT, params=None, compute=None,
-                  header=False) -> CheckReport:
+                  header=False, execution_id=None) -> CheckReport:
     """Evaluate a Vadalog program and check its outputs.
 
     ``expect`` maps each output predicate to its expected rows: a CSV path or a
     list of rows. With no ``expect`` the check passes when the program
     evaluates. Never raises for a failed check or an engine error; read
     ``report.ok``, or call ``report.assert_ok()`` inside a test.
+    ``execution_id`` is passed to ``evaluate_program``, so
+    ``stop_evaluation(execution_id)`` stops the check.
 
     Example::
 
@@ -185,7 +187,8 @@ def check_program(program, expect=None, mode=EXACT, params=None, compute=None,
     """
     _check_mode(mode)
     try:
-        evaluation = evaluate_program(program, params=params, compute=compute) or {}
+        evaluation = evaluate_program(program, params=params, compute=compute,
+                                      execution_id=execution_id) or {}
     except Exception as exc:
         return CheckReport(ok=False, error=f"engine error: {exc}", program=program)
 
@@ -202,7 +205,8 @@ def check_program(program, expect=None, mode=EXACT, params=None, compute=None,
 
 
 def check_question(question, expect=None, mode=EXACT, expect_predicate=None,
-                   context=None, params=None, compute=None, header=False) -> CheckReport:
+                   context=None, params=None, compute=None, header=False,
+                   execution_id=None) -> CheckReport:
     """Translate a question into a Vadalog program, evaluate it, and check it.
 
     ``expect`` is either a mapping like ``check_program`` takes, or a single CSV
@@ -226,7 +230,7 @@ def check_question(question, expect=None, mode=EXACT, expect_predicate=None,
         expect = {predicate: expect}
 
     report = check_program(program, expect=expect, mode=mode, params=params,
-                           compute=compute, header=header)
+                           compute=compute, header=header, execution_id=execution_id)
     report.question = question
     report.model = generated["model"]
     return report

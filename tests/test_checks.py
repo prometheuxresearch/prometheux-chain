@@ -18,7 +18,7 @@ TC_RESULT = {
 
 
 def _engine(result=None, error=None):
-    def evaluate(program, params=None, compute=None):
+    def evaluate(program, params=None, compute=None, execution_id=None):
         if error:
             raise Exception(error)
         return result

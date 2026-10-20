@@ -140,7 +140,8 @@ covering the user-facing JarvisPy backend:
 - **Auth / tokens** — `issue_token`, `list_tokens`, `revoke_token`,
   `revoke_specific_token`, `revoke_all_tokens`.
 - **Vadalog authoring** — `analyze_program`, `build_bind`, `parse_binds`,
-  `evaluate_program`, `generate_program`, `validate_concept`.
+  `evaluate_program`, `evaluation_status`, `stop_evaluation`,
+  `generate_program`, `validate_concept`.
 - **Vadalog checks** — `check_program`, `check_question`, `compare_rows`,
   `read_expected_csv` (see [Testing Vadalog programs](#testing-vadalog-programs)).
 - **Engine workers** — `engine_workers`, `set_engine_workers`,
@@ -213,6 +214,26 @@ generation in your usage.
 ```python
 report = px.check_question("Transitive closure of edge(X,Y). Output as tc.",
                            expect="tc.csv", mode="contains")
+```
+
+### Stopping a suite
+
+Give every evaluation of a suite the same `execution_id`, of your choosing, and
+`stop_evaluation` stops those and no one else's. Calls waiting on them raise
+"Execution stopped by user." within a second; calls with the id that arrive
+later are refused for a few minutes. `stop_evaluation()` without an id stops
+every evaluation on the workspace, other users' included, like the Stop button.
+
+```python
+import uuid
+
+suite = str(uuid.uuid4())
+try:
+    reports = [px.check_program(case.program, expect=case.expect, execution_id=suite)
+               for case in cases]
+except KeyboardInterrupt:
+    px.stop_evaluation(suite)
+    raise
 ```
 
 The `px test` command of the [Prometheux CLI](https://github.com/prometheuxresearch/prometheux-cli)
