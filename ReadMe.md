@@ -155,6 +155,13 @@ Some recipient-side sharing flows require a Supabase token. Set it via the
 `SUPABASE_TOKEN` environment variable (or `px.config`) and it is attached
 automatically as the `X-Supabase-Token` header when present.
 
+Every request has a 10 s connect timeout and a 300 s read timeout
+(`JARVISPY_CONNECT_TIMEOUT`, `JARVISPY_READ_TIMEOUT` in `px.config`). A request whose
+connection cannot be opened is tried again up to 3 times (`JARVISPY_CONNECT_RETRIES`,
+config or environment). Connections use TCP keepalive, so a router that would drop a
+connection waiting for a long evaluation keeps it, and one dropped anyway fails in
+about 35 s instead of waiting out the read timeout.
+
 ## Streaming
 
 A few endpoints stream results instead of returning a single response. These

@@ -11,16 +11,74 @@ import json as _json
 import os
 import random
 import re
+import socket
 import time
 from urllib.parse import quote, urlencode
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.connection import HTTPConnection
+from urllib3.exceptions import ProtocolError
+from urllib3.util.retry import Retry
 
 from ..config import config
 from ..data.database import Database
 
 # Sentinel for "argument not supplied" where None is a meaningful value.
 _UNSET = object()
+
+# A call waiting for a long evaluation carries no bytes, and a router or NAT on
+# the way may forget the connection: the answer is then lost and the call waits
+# out its read timeout. TCP keepalive probes keep the connection known to them,
+# and expose one dropped anyway after about IDLE + INTERVAL * COUNT seconds.
+_KEEPALIVE_IDLE = 15
+_KEEPALIVE_INTERVAL = 5
+_KEEPALIVE_COUNT = 4
+
+
+def _keepalive_socket_options():
+    """urllib3's default socket options plus the keepalive ones this platform
+    accepts; one it refuses would fail every connection, so each is tried first."""
+    idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE", None)
+    candidates = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+    for name, value in ((idle, _KEEPALIVE_IDLE),
+                        (getattr(socket, "TCP_KEEPINTVL", None), _KEEPALIVE_INTERVAL),
+                        (getattr(socket, "TCP_KEEPCNT", None), _KEEPALIVE_COUNT)):
+        if name is not None:
+            candidates.append((socket.IPPROTO_TCP, name, value))
+    usable = []
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        for option in candidates:
+            try:
+                probe.setsockopt(*option)
+                usable.append(option)
+            except OSError:
+                pass
+    finally:
+        probe.close()
+    return list(HTTPConnection.default_socket_options) + usable
+
+
+_SOCKET_OPTIONS = _keepalive_socket_options()
+
+
+class _ResilientAdapter(HTTPAdapter):
+    """Keepalive on every connection, and a call whose connection could not be
+    opened is tried again: nothing was sent, so it is safe for any method."""
+
+    def __init__(self, connect_retries):
+        super().__init__(max_retries=Retry(
+            total=None, connect=connect_retries, read=False, status=0, other=0,
+            backoff_factor=0.5, raise_on_status=False))
+
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs["socket_options"] = _SOCKET_OPTIONS
+        super().init_poolmanager(*args, **kwargs)
+
+    def proxy_manager_for(self, proxy, **proxy_kwargs):
+        proxy_kwargs.setdefault("socket_options", _SOCKET_OPTIONS)
+        return super().proxy_manager_for(proxy, **proxy_kwargs)
 
 
 def _resolve_user_agent():
@@ -102,6 +160,19 @@ class JarvisPyClient:
                         JarvisPyClient._DEFAULT_READ_TIMEOUT)
         return (connect, read)
 
+    # How many more times a call whose connection could not be opened is tried.
+    # Overridable via config or the JARVISPY_CONNECT_RETRIES environment variable.
+    _DEFAULT_CONNECT_RETRIES = 3
+
+    @staticmethod
+    def _connect_retries():
+        try:
+            return max(0, int(os.environ.get(
+                'JARVISPY_CONNECT_RETRIES',
+                config.get('JARVISPY_CONNECT_RETRIES', JarvisPyClient._DEFAULT_CONNECT_RETRIES))))
+        except (TypeError, ValueError):
+            return JarvisPyClient._DEFAULT_CONNECT_RETRIES
+
     # A workspace refuses an evaluation with 409 ENGINE_BUSY when it is already
     # running as many engine calls as it takes. The evaluation never started, so
     # it is sent again until this budget (seconds) runs out. Overridable via
@@ -154,17 +225,42 @@ class JarvisPyClient:
 
     @staticmethod
     def _send(method, url, **kwargs):
-        """Issue a requests call with a guaranteed timeout and friendly errors."""
+        """Issue a requests call with a guaranteed timeout and friendly errors.
+
+        Each call has its own connection, with TCP keepalive, and is tried again
+        when that connection cannot be opened (see ``_ResilientAdapter``).
+        """
         kwargs.setdefault('timeout', JarvisPyClient._timeout())
+        retries = JarvisPyClient._connect_retries()
+        started = time.monotonic()
         try:
-            return requests.request(method, url, **kwargs)
+            with requests.Session() as session:
+                adapter = _ResilientAdapter(retries)
+                session.mount('https://', adapter)
+                session.mount('http://', adapter)
+                return session.request(method, url, **kwargs)
+        except requests.exceptions.ConnectTimeout as exc:
+            raise Exception(
+                f"Could not connect to {url} in {retries + 1} attempt(s) over "
+                f"{time.monotonic() - started:.0f}s. Check that the backend is running "
+                "and reachable from this network."
+            ) from exc
         except requests.exceptions.Timeout as exc:
+            # Also raised when the TLS handshake stalls, or when keepalive finds the
+            # connection dead: the elapsed time, not the read timeout, says which.
             read_timeout = kwargs['timeout'][1] if isinstance(kwargs['timeout'], tuple) else kwargs['timeout']
             raise Exception(
-                f"Request to {url} timed out after {read_timeout}s. "
-                "The backend may be slow or unresponsive."
+                f"Request to {url} timed out after {time.monotonic() - started:.0f}s "
+                f"(read timeout {read_timeout}s). The backend may be slow or "
+                "unresponsive, or the network dropped the connection."
             ) from exc
         except requests.exceptions.ConnectionError as exc:
+            if exc.args and isinstance(exc.args[0], ProtocolError):
+                raise Exception(
+                    f"The connection to {url} was lost after "
+                    f"{time.monotonic() - started:.0f}s, before the answer came back. "
+                    "The request may have run on the backend."
+                ) from exc
             raise Exception(
                 f"Could not connect to JarvisPy backend at {config.get('JARVISPY_URL')}. "
                 "Check that it is running and JARVISPY_URL is correct."
