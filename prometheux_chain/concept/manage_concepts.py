@@ -83,10 +83,15 @@ def list_concepts(ontology_id):
     return _check(JarvisPyClient.list_concepts(ontology_id=ontology_id), "list")
 
 
-def cleanup_concepts(ontology_id, concept_names=None):
-    """Delete concepts from a project. If ``concept_names`` is None, deletes all."""
+def cleanup_concepts(ontology_id, concept_names, confirm_impact=False):
+    """Delete the named concepts from a project.
+
+    ``concept_names`` must be a non-empty list; there is no "delete all" mode.
+    Set ``confirm_impact`` to delete global concepts that other projects read.
+    """
     return _check(JarvisPyClient.cleanup_concepts(
-        ontology_id=ontology_id, concept_names=concept_names), "cleanup")
+        ontology_id=ontology_id, concept_names=concept_names,
+        confirm_impact=confirm_impact), "cleanup")
 
 
 def reorder_concepts(ontology_id, concept_names, group=None):

@@ -751,10 +751,10 @@ class JarvisPyClient:
         return JarvisPyClient._request("GET", f"/api/v1/concepts/{ontology_id}/list")
 
     @staticmethod
-    def cleanup_concepts(ontology_id, concept_names=None):
-        payload = {}
-        if concept_names:
-            payload['concept_names'] = concept_names
+    def cleanup_concepts(ontology_id, concept_names, confirm_impact=False):
+        payload = {'concept_names': concept_names}
+        if confirm_impact:
+            payload['confirm_impact'] = True
         return JarvisPyClient._request("POST", f"/api/v1/concepts/{ontology_id}/cleanup", json=payload)
 
     @staticmethod
