@@ -92,7 +92,10 @@ jobs:
     # guidance is to keep all of that out of any job able to mint a publishing
     # token. A malicious dependency here can waste a release; it cannot ask for
     # a credential.
-    runs-on: ubuntu-latest
+    #
+    # Pinned because this job runs Python 3.9, and actions/python-versions has
+    # no 3.9 build for Ubuntu 26.04, which ubuntu-latest now resolves to.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 

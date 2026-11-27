@@ -40,13 +40,19 @@ jobs:
     # rather than a formality — __init__.py re-exports ~140 names from every
     # submodule, so a syntax error, a missing dependency or a function renamed
     # anywhere in the package surfaces right here.
-    runs-on: ubuntu-latest
+    name: import (${{ matrix.python-version }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         # setup.py claims >=3.9; check both ends of that range rather than
-        # trusting the classifier.
-        python-version: ["3.9", "3.13"]
+        # trusting the classifier. actions/python-versions has no 3.9 build for
+        # Ubuntu 26.04, which ubuntu-latest now resolves to, so 3.9 runs on 24.04.
+        include:
+          - python-version: "3.9"
+            runner: ubuntu-24.04
+          - python-version: "3.13"
+            runner: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
